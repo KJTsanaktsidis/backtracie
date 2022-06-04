@@ -186,7 +186,7 @@ id2str(ID id)
 static int backtracie_rb_profile_frames_for_execution_context(
   rb_execution_context_t *ec,
   int limit,
-  raw_location *raw_locations
+  backtracie_raw_location *raw_locations
 ) {
   int i = 0;
   const rb_control_frame_t *cfp = ec->cfp;
@@ -259,7 +259,7 @@ static int backtracie_rb_profile_frames_for_execution_context(
   return i;
 }
 
-int backtracie_rb_profile_frames(int limit, raw_location *raw_locations) {
+int backtracie_rb_profile_frames(int limit, backtracie_raw_location *raw_locations) {
   #ifndef PRE_EXECUTION_CONTEXT
     return backtracie_rb_profile_frames_for_execution_context(GET_EC(), limit, raw_locations);
   #else
@@ -276,7 +276,7 @@ bool backtracie_is_thread_alive(VALUE thread) {
   return !(thread_pointer->to_kill || thread_pointer->status == THREAD_KILLED);
 }
 
-int backtracie_rb_profile_frames_for_thread(VALUE thread, int limit, raw_location *raw_locations) {
+int backtracie_rb_profile_frames_for_thread(VALUE thread, int limit, backtracie_raw_location *raw_locations) {
   if (!backtracie_is_thread_alive(thread)) return 0;
 
   // In here we're assuming that what we got is really a Thread or its subclass. This assumption NEEDS to be verified by
@@ -290,7 +290,7 @@ int backtracie_rb_profile_frames_for_thread(VALUE thread, int limit, raw_locatio
   #endif
 }
 
-VALUE backtracie_called_id(raw_location *the_location) {
+VALUE backtracie_called_id(backtracie_raw_location *the_location) {
   if (the_location->callable_method_entry == Qnil) return Qnil;
 
   return ID2SYM(
@@ -299,7 +299,7 @@ VALUE backtracie_called_id(raw_location *the_location) {
   );
 }
 
-VALUE backtracie_defined_class(raw_location *the_location) {
+VALUE backtracie_defined_class(backtracie_raw_location *the_location) {
   if (the_location->callable_method_entry == Qnil) return Qnil;
 
   return \
@@ -307,19 +307,19 @@ VALUE backtracie_defined_class(raw_location *the_location) {
       ->defined_class;
 }
 
-bool backtracie_iseq_is_block(raw_location *the_location) {
+bool backtracie_iseq_is_block(backtracie_raw_location *the_location) {
   if (the_location->iseq == Qnil) return false;
 
   return ((rb_iseq_t *) the_location->iseq)->body->type == ISEQ_TYPE_BLOCK;
 }
 
-bool backtracie_iseq_is_eval(raw_location *the_location) {
+bool backtracie_iseq_is_eval(backtracie_raw_location *the_location) {
   if (the_location->iseq == Qnil) return false;
 
   return ((rb_iseq_t *) the_location->iseq)->body->type == ISEQ_TYPE_EVAL;
 }
 
-VALUE backtracie_refinement_name(raw_location *the_location) {
+VALUE backtracie_refinement_name(backtracie_raw_location *the_location) {
   VALUE defined_class = backtracie_defined_class(the_location);
   if (defined_class == Qnil) return Qnil;
 

@@ -25,6 +25,7 @@
 #include "extconf.h"
 
 #include "ruby_shards.h"
+#include "backtracie.h"
 
 
 #define MAX_STACK_DEPTH 2000 // FIXME: Need to handle when this is not enough
@@ -42,18 +43,18 @@ static VALUE primitive_caller_locations(VALUE self);
 static VALUE primitive_backtrace_locations(VALUE self, VALUE thread);
 static VALUE collect_backtrace_locations(VALUE self, VALUE thread, int ignored_stack_top_frames);
 inline static VALUE new_location(VALUE absolute_path, VALUE base_label, VALUE label, VALUE lineno, VALUE path, VALUE qualified_method_name, VALUE debug);
-static VALUE ruby_frame_to_location(raw_location *the_location);
-static VALUE qualified_method_name_for_location(raw_location *the_location);
-static VALUE cfunc_frame_to_location(raw_location *the_location, raw_location *last_ruby_location);
-static VALUE frame_from_location(raw_location *the_location);
-static VALUE qualified_method_name_for_block(raw_location *the_location);
-static VALUE qualified_method_name_from_self(raw_location *the_location);
-static bool is_self_class_singleton(raw_location *the_location);
-static bool is_defined_class_a_refinement(raw_location *the_location);
-static VALUE debug_raw_location(raw_location *the_location);
+static VALUE ruby_frame_to_location(backtracie_raw_location *the_location);
+static VALUE cfunc_frame_to_location(backtracie_raw_location *the_location, backtracie_raw_location *last_ruby_location);
+static VALUE qualified_method_name_for_block(backtracie_raw_location *the_location);
+static VALUE qualified_method_name_from_self(backtracie_raw_location *the_location);
+static bool is_self_class_singleton(backtracie_raw_location *the_location);
+static bool is_defined_class_a_refinement(backtracie_raw_location *the_location);
+static VALUE debug_raw_location(backtracie_raw_location *the_location);
 static VALUE debug_frame(VALUE frame);
-static VALUE cfunc_function_info(raw_location *the_location);
+static VALUE cfunc_function_info(backtracie_raw_location *the_location);
 static inline VALUE to_boolean(bool value);
+static VALUE frame_from_location(backtracie_raw_location *the_location);
+
 
 void Init_backtracie_native_extension(void) {
   main_object_instance = rb_funcall(rb_const_get(rb_cObject, rb_intern("TOPLEVEL_BINDING")), rb_intern("eval"), 1, rb_str_new2("self"));
@@ -76,7 +77,7 @@ void Init_backtracie_native_extension(void) {
 // Get array of Backtracie::Locations for a given thread; if thread is nil, returns for the current thread
 static VALUE collect_backtrace_locations(VALUE self, VALUE thread, int ignored_stack_top_frames) {
   int stack_depth = 0;
-  raw_location raw_locations[MAX_STACK_DEPTH];
+  backtracie_raw_location raw_locations[MAX_STACK_DEPTH];
 
   if (thread == Qnil) {
     // Get for own thread
@@ -92,7 +93,7 @@ static VALUE collect_backtrace_locations(VALUE self, VALUE thread, int ignored_s
   // Kernel#caller_locations is to instead use the path and line number of the last Ruby frame seen.
   // Thus, we keep that frame here to able to replicate that behavior.
   // (This is why we also iterate the frames array backwards below -- so that it's easier to keep the last_ruby_frame)
-  raw_location *last_ruby_location = 0;
+  backtracie_raw_location *last_ruby_location = 0;
 
   for (int i = stack_depth - 1; i >= ignored_stack_top_frames; i--) {
     VALUE location = Qnil;
@@ -141,7 +142,7 @@ inline static VALUE new_location(
   return rb_class_new_instance(VALUE_COUNT(arguments), arguments, backtracie_location_class);
 }
 
-static VALUE ruby_frame_to_location(raw_location *the_location) {
+static VALUE ruby_frame_to_location(backtracie_raw_location *the_location) {
   VALUE frame = frame_from_location(the_location);
 
   return new_location(
@@ -150,12 +151,12 @@ static VALUE ruby_frame_to_location(raw_location *the_location) {
     rb_profile_frame_label(the_location->iseq),
     INT2FIX(the_location->line_number),
     rb_profile_frame_path(frame),
-    qualified_method_name_for_location(the_location),
+    backtracie_qualified_method_name_for_location(the_location),
     debug_raw_location(the_location)
   );
 }
 
-static VALUE qualified_method_name_for_location(raw_location *the_location) {
+VALUE backtracie_qualified_method_name_for_location(backtracie_raw_location *the_location) {
   VALUE frame = frame_from_location(the_location);
   VALUE defined_class = backtracie_defined_class(the_location);
   VALUE qualified_method_name = Qnil;
@@ -196,7 +197,7 @@ static VALUE qualified_method_name_for_location(raw_location *the_location) {
   return qualified_method_name;
 }
 
-static VALUE cfunc_frame_to_location(raw_location *the_location, raw_location *last_ruby_location) {
+static VALUE cfunc_frame_to_location(backtracie_raw_location *the_location, backtracie_raw_location *last_ruby_location) {
   VALUE last_ruby_frame =
     last_ruby_location != 0 ? frame_from_location(last_ruby_location) : Qnil;
 
@@ -214,7 +215,7 @@ static VALUE cfunc_frame_to_location(raw_location *the_location, raw_location *l
   );
 }
 
-static VALUE frame_from_location(raw_location *the_location) {
+static VALUE frame_from_location(backtracie_raw_location *the_location) {
   return \
     the_location->should_use_iseq ||
     // This one is somewhat weird, but the regular MRI Ruby APIs seem to pick the iseq for evals as well
@@ -222,7 +223,7 @@ static VALUE frame_from_location(raw_location *the_location) {
       the_location->iseq : the_location->callable_method_entry;
 }
 
-static VALUE qualified_method_name_for_block(raw_location *the_location) {
+static VALUE qualified_method_name_for_block(backtracie_raw_location *the_location) {
   VALUE class_name = backtracie_rb_profile_frame_classpath(the_location->callable_method_entry);
   VALUE method_name = backtracie_called_id(the_location);
   VALUE is_singleton_method = rb_profile_frame_singleton_method_p(the_location->iseq);
@@ -235,7 +236,7 @@ static VALUE qualified_method_name_for_block(raw_location *the_location) {
   return name;
 }
 
-static VALUE qualified_method_name_from_self(raw_location *the_location) {
+static VALUE qualified_method_name_from_self(backtracie_raw_location *the_location) {
   if (the_location->self == Qnil) return Qnil;
 
   VALUE self_class = rb_class_of(the_location->self);
@@ -275,7 +276,7 @@ static VALUE qualified_method_name_from_self(raw_location *the_location) {
   }
 
   if (backtracie_iseq_is_block(the_location) || backtracie_iseq_is_eval(the_location)) {
-    // Nothing to do, {block} will be appended in qualified_method_name_for_location which called us
+    // Nothing to do, {block} will be appended in backtracie_qualified_method_name_for_location which called us
   } else {
     rb_str_concat(name, rb_profile_frame_base_label(frame_from_location(the_location)));
   }
@@ -283,17 +284,17 @@ static VALUE qualified_method_name_from_self(raw_location *the_location) {
   return name;
 }
 
-static bool is_self_class_singleton(raw_location *the_location) {
+static bool is_self_class_singleton(backtracie_raw_location *the_location) {
   return the_location->self != Qnil && FL_TEST(rb_class_of(the_location->self), FL_SINGLETON);
 }
 
-static bool is_defined_class_a_refinement(raw_location *the_location) {
+static bool is_defined_class_a_refinement(backtracie_raw_location *the_location) {
   VALUE defined_class = backtracie_defined_class(the_location);
 
   return defined_class != Qnil && FL_TEST(rb_class_of(defined_class), RMODULE_IS_REFINEMENT);
 }
 
-static VALUE debug_raw_location(raw_location *the_location) {
+static VALUE debug_raw_location(backtracie_raw_location *the_location) {
   VALUE self_class = SAFE_NAVIGATION(rb_class_of, the_location->self);
 
   VALUE arguments[] = {
@@ -344,7 +345,7 @@ static VALUE debug_frame(VALUE frame) {
   return debug_hash;
 }
 
-static VALUE cfunc_function_info(raw_location *the_location) {
+static VALUE cfunc_function_info(backtracie_raw_location *the_location) {
   return Qnil;
   #if 0 // Disabled until this can be fixed up to not break Windows/macOS
   Dl_info symbol_info;

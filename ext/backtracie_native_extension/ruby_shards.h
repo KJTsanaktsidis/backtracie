@@ -130,16 +130,16 @@ typedef struct {
 
   // Original function pointer for C function
   VALUE (*cfunc_function)(ANYARGS);
-} raw_location;
+} backtracie_raw_location;
 
-int backtracie_rb_profile_frames(int limit, raw_location *raw_locations);
-int backtracie_rb_profile_frames_for_thread(VALUE thread, int limit, raw_location *raw_locations);
+int backtracie_rb_profile_frames(int limit, backtracie_raw_location *raw_locations);
+int backtracie_rb_profile_frames_for_thread(VALUE thread, int limit, backtracie_raw_location *raw_locations);
 bool backtracie_is_thread_alive(VALUE thread);
-VALUE backtracie_called_id(raw_location *the_location);
-VALUE backtracie_defined_class(raw_location *the_location);
-bool backtracie_iseq_is_block(raw_location *the_location);
-bool backtracie_iseq_is_eval(raw_location *the_location);
-VALUE backtracie_refinement_name(raw_location *the_location);
+VALUE backtracie_called_id(backtracie_raw_location *the_location);
+VALUE backtracie_defined_class(backtracie_raw_location *the_location);
+bool backtracie_iseq_is_block(backtracie_raw_location *the_location);
+bool backtracie_iseq_is_eval(backtracie_raw_location *the_location);
+VALUE backtracie_refinement_name(backtracie_raw_location *the_location);
 
 // -----------------------------------------------------------------------------
 
