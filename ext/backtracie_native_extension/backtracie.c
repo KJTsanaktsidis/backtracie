@@ -53,7 +53,6 @@ static VALUE debug_raw_location(backtracie_raw_location *the_location);
 static VALUE debug_frame(VALUE frame);
 static VALUE cfunc_function_info(backtracie_raw_location *the_location);
 static inline VALUE to_boolean(bool value);
-static VALUE frame_from_location(backtracie_raw_location *the_location);
 
 
 void Init_backtracie_native_extension(void) {
@@ -143,7 +142,7 @@ inline static VALUE new_location(
 }
 
 static VALUE ruby_frame_to_location(backtracie_raw_location *the_location) {
-  VALUE frame = frame_from_location(the_location);
+  VALUE frame = backtracie_frame_from_location(the_location);
 
   return new_location(
     rb_profile_frame_absolute_path(frame),
@@ -157,7 +156,7 @@ static VALUE ruby_frame_to_location(backtracie_raw_location *the_location) {
 }
 
 VALUE backtracie_qualified_method_name_for_location(backtracie_raw_location *the_location) {
-  VALUE frame = frame_from_location(the_location);
+  VALUE frame = backtracie_frame_from_location(the_location);
   VALUE defined_class = backtracie_defined_class(the_location);
   VALUE qualified_method_name = Qnil;
 
@@ -199,7 +198,7 @@ VALUE backtracie_qualified_method_name_for_location(backtracie_raw_location *the
 
 static VALUE cfunc_frame_to_location(backtracie_raw_location *the_location, backtracie_raw_location *last_ruby_location) {
   VALUE last_ruby_frame =
-    last_ruby_location != 0 ? frame_from_location(last_ruby_location) : Qnil;
+    last_ruby_location != 0 ? backtracie_frame_from_location(last_ruby_location) : Qnil;
 
   // Replaces label and base_label in cfuncs
   VALUE method_name = backtracie_rb_profile_frame_method_name(the_location->callable_method_entry);
@@ -215,7 +214,7 @@ static VALUE cfunc_frame_to_location(backtracie_raw_location *the_location, back
   );
 }
 
-static VALUE frame_from_location(backtracie_raw_location *the_location) {
+VALUE backtracie_frame_from_location(backtracie_raw_location *the_location) {
   return \
     the_location->should_use_iseq ||
     // This one is somewhat weird, but the regular MRI Ruby APIs seem to pick the iseq for evals as well
