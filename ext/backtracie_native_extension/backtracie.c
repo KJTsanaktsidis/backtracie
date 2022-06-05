@@ -25,6 +25,8 @@
 #include "extconf.h"
 
 #include "ruby_shards.h"
+#include "backtracie.h"
+#include "backtracie_internal.h"
 
 
 #define MAX_STACK_DEPTH 2000 // FIXME: Need to handle when this is not enough
@@ -43,9 +45,7 @@ static VALUE primitive_backtrace_locations(VALUE self, VALUE thread);
 static VALUE collect_backtrace_locations(VALUE self, VALUE thread, int ignored_stack_top_frames);
 inline static VALUE new_location(VALUE absolute_path, VALUE base_label, VALUE label, VALUE lineno, VALUE path, VALUE qualified_method_name, VALUE debug);
 static VALUE ruby_frame_to_location(raw_location *the_location);
-static VALUE qualified_method_name_for_location(raw_location *the_location);
 static VALUE cfunc_frame_to_location(raw_location *the_location, raw_location *last_ruby_location);
-static VALUE frame_from_location(raw_location *the_location);
 static VALUE qualified_method_name_for_block(raw_location *the_location);
 static VALUE qualified_method_name_from_self(raw_location *the_location);
 static bool is_self_class_singleton(raw_location *the_location);
@@ -55,6 +55,7 @@ static VALUE debug_frame(VALUE frame);
 static VALUE cfunc_function_info(raw_location *the_location);
 static inline VALUE to_boolean(bool value);
 
+BACKTRACIE_API
 void Init_backtracie_native_extension(void) {
   main_object_instance = rb_funcall(rb_const_get(rb_cObject, rb_intern("TOPLEVEL_BINDING")), rb_intern("eval"), 1, rb_str_new2("self"));
   ensure_object_is_thread_id = rb_intern("ensure_object_is_thread");
@@ -155,7 +156,7 @@ static VALUE ruby_frame_to_location(raw_location *the_location) {
   );
 }
 
-static VALUE qualified_method_name_for_location(raw_location *the_location) {
+VALUE qualified_method_name_for_location(raw_location *the_location) {
   VALUE frame = frame_from_location(the_location);
   VALUE defined_class = backtracie_defined_class(the_location);
   VALUE qualified_method_name = Qnil;
@@ -220,7 +221,7 @@ static VALUE cfunc_frame_to_location(raw_location *the_location, raw_location *l
   );
 }
 
-static VALUE frame_from_location(raw_location *the_location) {
+VALUE frame_from_location(raw_location *the_location) {
   return \
     the_location->should_use_iseq ||
     // This one is somewhat weird, but the regular MRI Ruby APIs seem to pick the iseq for evals as well

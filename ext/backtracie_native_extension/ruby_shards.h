@@ -141,6 +141,8 @@ bool backtracie_iseq_is_block(raw_location *the_location);
 bool backtracie_iseq_is_eval(raw_location *the_location);
 bool backtracie_method_is_bmethod(raw_location *the_location);
 VALUE backtracie_refinement_name(raw_location *the_location);
+int backtracie_rb_profile_frames_count();
+int backtracie_rb_profile_frames_count_for_thread(VALUE thread);
 
 // -----------------------------------------------------------------------------
 

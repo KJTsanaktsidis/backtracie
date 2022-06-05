@@ -268,6 +268,48 @@ int backtracie_rb_profile_frames(int limit, raw_location *raw_locations) {
   #endif
 }
 
+static int backtracie_rb_profile_frames_count_for_execution_context(
+  rb_execution_context_t *ec
+) {
+    const rb_control_frame_t *last_cfp = ec->cfp;
+    const rb_control_frame_t *start_cfp = RUBY_VM_END_CONTROL_FRAME(GET_EC());
+
+    // Allegedly, according to vm_backtrace.c, we need to skip the first two control frames because they
+    // are "dummy frames", whatever that means.
+    start_cfp = RUBY_VM_NEXT_CONTROL_FRAME(start_cfp);
+    start_cfp = RUBY_VM_NEXT_CONTROL_FRAME(start_cfp);
+
+    if (start_cfp < last_cfp) {
+        return 0;
+    } else {
+        return (int)(start_cfp - last_cfp + 1);
+    }
+}
+
+int backtracie_rb_profile_frames_count()
+{
+  #ifndef PRE_EXECUTION_CONTEXT
+    return backtracie_rb_profile_frames_count_for_execution_context(GET_EC());
+  #else
+    // FIXME: Figure out how to make GET_EC (GET_THREAD) work for Ruby <= 2.4
+    return 0;
+  #endif
+  }
+
+int backtracie_rb_profile_frames_count_for_thread(VALUE thread) {
+  if (!backtracie_is_thread_alive(thread)) return 0;
+
+  // In here we're assuming that what we got is really a Thread or its subclass. This assumption NEEDS to be verified by
+  // the caller, otherwise I see a segfault in your future.
+  rb_thread_t *thread_pointer = (rb_thread_t*) DATA_PTR(thread);
+
+  #ifndef PRE_EXECUTION_CONTEXT
+    return backtracie_rb_profile_frames_count_for_execution_context(thread_pointer->ec);
+  #else
+    return backtracie_rb_profile_frames_count_for_execution_context(thread_pointer);
+  #endif
+}
+
 bool backtracie_is_thread_alive(VALUE thread) {
   // In here we're assuming that what we got is really a Thread or its subclass. This assumption NEEDS to be verified by
   // the caller, otherwise I see a segfault in your future.

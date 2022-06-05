@@ -67,6 +67,19 @@ if RUBY_VERSION < "2.4"
   $CFLAGS << " " << "-DPRE_VM_ENV_RENAMES" # Flag that it's a really old Ruby, and a few constants were since renamed
 end
 
+# Add public include dir to cflags
+$CFLAGS << " " << "-I#{File.realpath(File.join(__dir__, "include"))}"
+
+# Only export specified symbols, not everything (which is the GCC default)
+$CFLAGS << " " << "-DBACKTRACIE_EXPORTS"
+if try_cflags('-fvisibility=hidden')
+  $CFLAGS << " " << "-fvisibility=hidden"
+end
+
+# Find out if we have moveable GC
+have_func("rb_gc_mark_movable", ["ruby.h"])
+have_func("rb_gc_location", ["ruby.h"])
+
 create_header
 
 if RUBY_VERSION < "2.6"
