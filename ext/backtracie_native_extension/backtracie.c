@@ -180,7 +180,7 @@ VALUE backtracie_qualified_method_name_for_location(backtracie_raw_location *the
     qualified_method_name = rb_str_new2("");
     rb_str_concat(qualified_method_name, superclass_name);
     rb_str_concat(qualified_method_name, rb_str_new2("$anonymous#"));
-    rb_str_concat(qualified_method_name, backtracie_rb_profile_frame_method_name(backtracie_frame_from_location(the_location)));
+    rb_str_concat(qualified_method_name, rb_profile_frame_base_label(backtracie_frame_from_location(the_location)));
   } else {
     qualified_method_name = backtracie_rb_profile_frame_qualified_method_name(frame);
 
@@ -277,7 +277,7 @@ static VALUE qualified_method_name_from_self(backtracie_raw_location *the_locati
   if (backtracie_iseq_is_block(the_location) || backtracie_iseq_is_eval(the_location)) {
     // Nothing to do, {block} will be appended in backtracie_qualified_method_name_for_location which called us
   } else {
-    rb_str_concat(name, backtracie_rb_profile_frame_method_name(backtracie_frame_from_location(the_location)));
+    rb_str_concat(name, rb_profile_frame_base_label(backtracie_frame_from_location(the_location)));
   }
 
   return name;
