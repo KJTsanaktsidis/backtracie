@@ -25,6 +25,9 @@ BACKTRACIE_API void backtracie_bt_gc_mark(backtracie_bt_t bt);
 #ifdef HAVE_RB_GC_MARK_MOVABLE
 BACKTRACIE_API void backtracie_bt_gc_mark_moveable(backtracie_bt_t bt);
 #endif
+// This API is a total hackjob and doesn't mark anything; instead, it calls
+// the proivided function for each VALUE.
+BACKTRACIE_API void backtracie_bt_gc_mark_custom(backtracie_bt_t bt, void (*mark_fn)(VALUE, void*), void *ctx);
 #ifdef HAVE_RB_GC_LOCATION
 BACKTRACIE_API void backtracie_bt_gc_compact(backtracie_bt_t bt);
 #endif

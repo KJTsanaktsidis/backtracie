@@ -66,6 +66,15 @@ void backtracie_bt_gc_mark_moveable(backtracie_bt_t bt) {
 }
 #endif
 
+BACKTRACIE_API void backtracie_bt_gc_mark_custom(backtracie_bt_t bt, void (*mark_fn)(VALUE, void*), void *ctx) {
+    for (uint32_t i = 0; i < bt->frames_count; i++) {
+        mark_fn(bt->frames[i].iseq, ctx);
+        mark_fn(bt->frames[i].callable_method_entry, ctx);
+        mark_fn(bt->frames[i].original_id, ctx);
+        mark_fn(bt->frames[i].self, ctx);
+    }
+}
+
 #ifdef HAVE_RB_GC_LOCATION
 void backtracie_bt_gc_compact(backtracie_bt_t bt) {
     for (uint32_t i = 0; i < bt->frames_count; i++) {
