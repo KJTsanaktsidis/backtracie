@@ -48,9 +48,9 @@ void backtracie_bt_free(backtracie_bt_t bt) {
 
 void backtracie_bt_gc_mark(backtracie_bt_t bt) {
     for (uint32_t i = 0; i < bt->frames_count; i++) {
-        rb_gc_mark(bt->frames[i].iseq);
-        rb_gc_mark(bt->frames[i].callable_method_entry);
-        rb_gc_mark(bt->frames[i].original_id);
+        if (bt->frames[i].is_ruby_frame) {
+            rb_gc_mark(bt->frames[i].iseq);
+        }
         rb_gc_mark(bt->frames[i].self);
     }
 }
@@ -58,9 +58,9 @@ void backtracie_bt_gc_mark(backtracie_bt_t bt) {
 #ifdef HAVE_RB_GC_MARK_MOVABLE
 void backtracie_bt_gc_mark_moveable(backtracie_bt_t bt) {
     for (uint32_t i = 0; i < bt->frames_count; i++) {
-        rb_gc_mark_movable(bt->frames[i].iseq);
-        rb_gc_mark_movable(bt->frames[i].callable_method_entry);
-        rb_gc_mark_movable(bt->frames[i].original_id);
+        if (bt->frames[i].is_ruby_frame) {
+            rb_gc_mark_movable(bt->frames[i].iseq);
+        }
         rb_gc_mark_movable(bt->frames[i].self);
     }
 }
@@ -68,19 +68,21 @@ void backtracie_bt_gc_mark_moveable(backtracie_bt_t bt) {
 
 BACKTRACIE_API void backtracie_bt_gc_mark_custom(backtracie_bt_t bt, void (*mark_fn)(VALUE, void*), void *ctx) {
     for (uint32_t i = 0; i < bt->frames_count; i++) {
-        mark_fn(bt->frames[i].iseq, ctx);
-        mark_fn(bt->frames[i].callable_method_entry, ctx);
-        mark_fn(bt->frames[i].original_id, ctx);
+        if (bt->frames[i].is_ruby_frame) {
+            mark_fn(bt->frames[i].iseq, ctx);
+        }
         mark_fn(bt->frames[i].self, ctx);
+        // The CME is not a Ruby object that needs marking. Keeping self live also keeps the CME live.
+        // The original_id is not used anywhere by the public functions, so needs no marking
     }
 }
 
 #ifdef HAVE_RB_GC_LOCATION
 void backtracie_bt_gc_compact(backtracie_bt_t bt) {
     for (uint32_t i = 0; i < bt->frames_count; i++) {
-        bt->frames[i].iseq = rb_gc_location(bt->frames[i].iseq);
-        bt->frames[i].callable_method_entry = rb_gc_location(bt->frames[i].callable_method_entry);
-        bt->frames[i].original_id = rb_gc_location(bt->frames[i].original_id);
+        if (bt->frames[i].is_ruby_frame) {
+            bt->frames[i].iseq = rb_gc_location(bt->frames[i].iseq);
+        }
         bt->frames[i].self = rb_gc_location(bt->frames[i].self);
     }
 }
